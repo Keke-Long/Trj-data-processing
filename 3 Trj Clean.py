@@ -90,7 +90,7 @@ new_d.to_csv(path_or_buf="/media/ubuntu/ANL/Data1_lane_xynew.csv", index=False)
     #     plt.scatter(waste[:,0], waste[:,1], s=5, color="red", label='Clean Sharp Angle')
     # plt.plot(x_new, y_new,  color="blue", label='after')
     # plt.scatter(x_new, y_new, alpha = 1/5, label='after')
-    # plt.gca().set_aspect(1) #横纵坐标一致
+    # plt.gca().set_aspect(1)
     # plt.legend()
     # plt.show()
 

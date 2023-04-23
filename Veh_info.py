@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import random
+from tqdm import tqdm
+
 
 def cal_distance(x1,x2,y1,y2):
     return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
@@ -13,7 +15,7 @@ def Cal_mean(ll,p): #排除10%的极大极小值
 
 
 # 记录每辆车的开始结束edge，lane， trip_time
-Veh_info = pd.DataFrame(columns=['id', 'width', 'length', 'trip_time', 'edge_start', 'edge_end'])
+Veh_info = pd.DataFrame(columns=['id', 'length', 'trip_time', 'edge_start', 'edge_end'])
 df = pd.read_csv("/media/ubuntu/ANL/Data1_lane_xy.csv")
 veh_list = df['id'].unique()
 
@@ -22,12 +24,12 @@ veh_list = df['id'].unique()
 e_list_1 = ['0_1','1_0', '1_2','2_1', '3_2','2_3', '3_4','4_3']
 # 车辆竖着走的edge
 e_list_2 = ['5_1', '1_8', '9_2', '2_6', '3_7', '7_3', '3_10', '10_3']
+
 # pix转utm的平均缩放系数 = 任意两个点的utm距离/任意两个点的pix距离，两个点是取同一edge上的
 r_list = []
 net = np.load('net.npy', allow_pickle=True).item()
 edge_list = list(net.keys())
 for edge in edge_list:
-    print('When Cal r, edge=',edge)
     d = df[df['edge'] == edge]
     if len(d)>0:
         d.reset_index(drop=True, inplace=True)
@@ -39,11 +41,8 @@ for edge in edge_list:
             r_list.append(distance_utm/distance_pix)
 r = np.nanmean(r_list)
 
-
-#for veh in veh_list:
-for veh in [3]:
+for veh in tqdm(veh_list, desc='Processing vehicles'):
     d = df[df['id'] == veh]
-    print('veh=', veh, '/', len(veh_list))
 
     # Cal t
     t = d['t_sec'].max()-d['t_sec'].min()
@@ -65,27 +64,19 @@ for veh in [3]:
         edge_end = edge_end + '_' + str(d.iloc[index].at['lane'])[0]
 
     # 如果车的行驶距离太短，起终点的edge一样，就不要了，在这个里筛选车辆不影响Data里算前车
-    if t <= 10 or (edge_start[0] == 'n' and edge_end[0] == 'n'):
-        continue
+    # if t <= 5 or (edge_start[0] == 'n' and edge_end[0] == 'n'):
+    #     continue
 
-    # Cal 'width', 'length'
-    w_list = list(d[d['edge'].isin(e_list_1)]['h_pix']) + list(d[d['edge'].isin(e_list_2)]['w_pix'])
-    if len(w_list):
-        #w = r * np.nanmean(w_list)
-        w = r * Cal_mean(w_list, 0.1)
+    # Cal 'length'
     l_list = list(d[d['edge'].isin(e_list_1)]['w_pix']) + list(d[d['edge'].isin(e_list_2)]['h_pix'])
     if len(l_list):
-        #l = r * np.nanmean(l_list)
-        l = r * Cal_mean(l_list, 0.1)
+        l = r * Cal_mean(l_list, 0.05)
 
-    Veh_info = Veh_info.append({'id': veh, 'width': round(w,2) , 'length': round(l,2) , 'trip_time': round(t,1), 'edge_start': edge_start, 'edge_end': edge_end}, ignore_index=True)
+    Veh_info = Veh_info.append({'id': veh, 'length': round(l,2) , 'trip_time': round(t,1), 'edge_start': edge_start, 'edge_end': edge_end}, ignore_index=True)
 
 Veh_info.to_csv(path_or_buf="/media/ubuntu/ANL/Veh_info.csv", index=False)
 
-import matplotlib.pyplot as plt
-plt.hist(Veh_info['width'], bins=20, normed=0, facecolor="blue", edgecolor="black", alpha=0.7)
-plt.title('distribution of vehicle width (meter)')
-plt.show()
-plt.hist(Veh_info['length'], bins=20, normed=0, facecolor="blue", edgecolor="black", alpha=0.7)
-plt.title('distribution of vehicle length (meter)')
-plt.show()
+# import matplotlib.pyplot as plt
+# plt.hist(Veh_info['length'], bins=20, normed=0, facecolor="blue", edgecolor="black", alpha=0.7)
+# plt.title('distribution of vehicle length (meter)')
+# plt.show()

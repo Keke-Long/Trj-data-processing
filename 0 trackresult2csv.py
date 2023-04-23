@@ -21,7 +21,7 @@ for file in tqdm(filelist):
     time = datetime.datetime.strptime(file_name[0], "%Y%m%d%H%M%S")
     millisec = int(file_name[1])
 
-    d = pd.read_table(path + file, sep='\s', names=['id', 'class', 'x_pix', 'y_pix', 'h_pix', 'w_pix'])
+    d = pd.read_table(path + file, sep='\s', names=['id', 'class', 'x_pix', 'y_pix', 'w_pix', 'h_pix'])
     frame_time = time + datetime.timedelta(hours=0, minutes=0, seconds=round(millisec / 10, 1))
     d.insert(2, 'time', frame_time)
     data = pd.concat([data, d])

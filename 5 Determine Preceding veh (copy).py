@@ -1,10 +1,12 @@
+#确定前车信息，包括前车的id，速度，距离
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
 df = pd.read_csv("/media/ubuntu/ANL/Data1_lane_xy_va.csv")
-df['PreVeh_id'] = np.nan
-df['PreVeh_v'] = np.nan
+veh_info = pd.read_csv("/media/ubuntu/ANL/Veh_info.csv")
+df['Pre_id'] = np.nan
+df['Pre_v'] = np.nan
 df['delta_d'] = np.nan #距离差
 
 # 写一个所有edge (一个edge内lane的方向一样) 应该用什么排序的方案，包括x/y，升序降序
@@ -39,25 +41,34 @@ edge_list.remove('node3')
 def cal_distance(x1,x2,y1,y2):
     return np.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
-# Iterate through the times
+
 for t in tqdm(df['t_sec'].unique()):
     df_t = df[df['t_sec']==t]
-    # Group the data frame by edge and lane
     grouped = df_t.groupby(['edge', 'lane'])
-    # Iterate through the groups
     for name, group in grouped:
         edge, lane = name
+        if len(group) < 2 or edge in ['node1', 'node2', 'node3']:
+            continue
+        # 开始根据x/y的大小排序，
         group = group.sort_values(sort_info[edge][0], ascending=sort_info[edge][1])
-        c = 0
-        ids = group['id'].values
-        vs = group['v'].values
-        x = group['x_utm'].values
-        y = group['y_utm'].values
-        delta_d = np.diff(np.sqrt((x[1:] - x[:-1])**2 + (y[1:] - y[:-1])**2))
-        for i in range(1, len(group)):
-            df.iloc[group.index[i], df.columns.get_loc('PreVeh_id')] = ids[c]
-            df.iloc[group.index[i], df.columns.get_loc('PreVeh_v')] = vs[c]
-            df.iloc[group.index[i], df.columns.get_loc('delta_d')] = delta_d[i-1]
+        df.loc[group.index[0], 'PreVeh_id'] = -1
+
+        c = 1
+        for i in group.index[1:]: # i 是按y排序后的行数
+            veh_id = df.loc[i, 'id']
+            pre_veh_id = df.loc[c, 'id']
+
+            df.loc[i, 'PreVeh_id'] = pre_veh_id
+            df.loc[i, 'PreVeh_v'] = df.loc[c, 'v']
+
+            pre_veh_len = float(veh_info.loc[veh_info['id'] == pre_veh_id]['length'])
+            veh_len = float(veh_info.loc[veh_info['id'] == veh_id]['length'])
+
+            x1 = df.loc[i, 'x_utm']
+            x2 = df.loc[c, 'x_utm']
+            y1 = df.loc[i, 'y_utm']
+            y2 = df.loc[c, 'y_utm']
+            df.loc[i, 'delta_d'] = cal_distance(x1, x2, y1, y2) - 0.5*(pre_veh_len + veh_len)
             c = i
 
-df.to_csv(path_or_buf="/media/ubuntu/ANL/Data1_forCalibration.csv", index=False)
+df.to_csv(path_or_buf="/media/ubuntu/ANL/Data1_lane_xy_va_pre.csv", index=False)
